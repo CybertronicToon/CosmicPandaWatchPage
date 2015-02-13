@@ -1666,3 +1666,23 @@ padding-bottom: 0px !important;
 
 
 
+
+
+
+body.watch6-channel-button-ellipsis #watch-channel-button.yt-uix-button-dark {
+display: inline-block;
+height: 37px;
+line-height: 35px;
+white-space: nowrap;
+}
+body.watch6-channel-button-ellipsis #watch-channel-button.yt-uix-button-dark .yt-uix-button-content {
+display: inline-block;
+line-height: 16px;
+max-width: 200px;
+overflow: hidden;
+position: relative;
+text-overflow: ellipsis;
+top: 3px;
+}
+
+
