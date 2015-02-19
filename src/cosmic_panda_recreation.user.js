@@ -1,18 +1,25 @@
 // ==UserScript==
 // @name           YouTube - Cosmic Panda Watch Page
+// @id             Cosmic_Panda_Recreation
 // @namespace      http://userscripts.org/users/428476
 // @description    attempts to re-create cosmic panda (2011 watch6 Test) using Javascript. It has all four size buttons fully implemented, has the prev and next buttons next to player, and makes the watch page look and feel like Cosmic Panda.
 // @require        https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js
+// @resource       res-YouTubeCSS https://raw.githubusercontent.com/CybertronicToon/CosmicPandaWatchPage/master/src/watch6.css#2
+// @resource       res-PlayerCSS https://raw.githubusercontent.com/CybertronicToon/CosmicPandaWatchPage/master/src/Watch6_Player.css#0
 // @grant          GM_getValue
 // @grant          GM_setValue
 // @grant          GM_deleteValue
 // @grant          GM_registerMenuCommanwd
 // @grant          GM_listValues
 // @grant          GM_addStyle
+// @grant          GM_getResourceText
+// @grant          GM_xmlhttpRequest
 // @run-at         document-end
 // @include        *.youtube.com/watch*
+// @include        *apis.google.com*
+// @include        *plus.googleapis.com*
 // @exclude        http://web.archive.org/*
-// @version        1.1
+// @version        1.3
 // ==/UserScript==
 
 var standardsizes = 0; //enable standard size options?
@@ -22,13 +29,18 @@ var enablePlTitle = 1; //enable showing playlist title with video title?
 var dynamicWatch = 3; //1 = dynamic width 2 = dynamic height 3 = same as original 0 = player fills screen
 
 var ytStage = 1;// 1 puts the player in a new element so nothing else affect its size, and makes for a more accurate re-creation. Disable if you want to use YTCenter re-sizing.
+
 var threeDsizes = 0; //not really that useful (enables player sizes for use with double-width 3D)
 
-var pltype = 3;// 2012 = player from 2012 (doesn't work - was deleted). 2013 = current player (if a video doesn't play, set to 2013) 2 = Player 3 AKA grey player (will almost always work - least buggy player and possibly faster loading) 3 = player 3 V8 version (should always work - has better fullscreen, and player 3 benefits)
+var pltype = 2013;// 2012 = player from 2012 (doesn't work - was deleted). 2013 = current player (if a video doesn't play, set to 2013) 2 = Player 3 AKA grey player (WAS DELETED!! almost always worked - least buggy player and possibly faster loading) 3 = player 3 V8 version (WAS DELETED! should have always work before - has better fullscreen, and player 3 benefits)
 
-var cosmicvids = 0; // cosmic panda style of related videos (doesn't work yet)
+var HTML5Style = 1 //1 = cosmic panda-style player, 0 = normal style player
+
+var cosmicvids = true; // cosmic panda style of related videos
 
 var noChngPlr = false; //set to true if you don't want the player changed by the script. If using YT Center, set to true unless using player 3.
+
+var forceHtml5 = false; //force the script to interpret the page as HTML5. (is pointless)
 
 var ChngAct = true; //changes the actions above desc but below stage to look like Cosmic Panda
 
@@ -38,7 +50,11 @@ var tweakDesc = true;
 
 var saveSize = true; //makes the page go to your last selected size automatically
 
-var fixPlaylists = false; //makes the Cosmic Panda playlist bar (NYI)
+var fixPlaylists = true; //makes the Cosmic Panda playlist bar
+
+var cssEllipsis = true; //gives the channel button ellipsis via CSS
+
+var fullSugThumbs = false; //makes the cosmicvids suggested thumbnails be full size instead of partially cut off.
 
 // 2012 = 2012
 // 2011 = cospan = 2011 dark (not working)
@@ -48,6 +64,14 @@ var fixPlaylists = false; //makes the Cosmic Panda playlist bar (NYI)
 
 
 
+
+
+
+
+
+var useRemoteCss = true; //enables the use of remote CSS (don't disable unless you have a userstyle) for this
+
+var alertsEnabled = false;
 
 
 
@@ -66,6 +90,7 @@ var fixPlaylists = false; //makes the Cosmic Panda playlist bar (NYI)
 
 // august 17th http://web.archive.org/web/20120817235249/http://www.youtube.com/watch?v=NI8rQEHoE24
 // old jquery https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js
+// new jquery https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js
 
 var script = {};
 
@@ -273,6 +298,25 @@ body.watch6-originalFill #page.watch6-full #watch-stage {\
   width: 100% !important;\
   padding-top: 20px !important;\
 }\
+body.watch6-originalFill #page.watch6-full.watch6-playlist #watch-tray {\
+  position: absolute !important;\
+  z-index: 550 !important;/* Above watch-frame-top (500) */\
+  height: 151px !important;\
+  bottom: 0 !important;\
+  left: 50% !important;\
+  margin-left: -485px !important;\
+  display: block !important;\
+}\
+body.watch6-originalFill #page.watch6-full.watch6-playlist #watch-stage #watch-video {\
+  position: absolute !important;\
+  top: 0 !important;\
+  bottom: 151px !important;\
+  left: 0 !important;\
+  right: 0 !important;\
+  width: auto !important;\
+  height: auto !important;\
+  margin: 0 !important;\
+}\
 body.watch6-originalFill #page.watch6-full #watch-stage #watch-video,\
 body.watch6-originalFill #page.watch6-full #watch-stage #watch-player {\
 height: 100% !important;\
@@ -306,8 +350,9 @@ display: none !important;\
 height: 100% !important;\
 width: 100% !important;\
 }";
-
-
+script.YouTubeCSS = GM_getResourceText("res-YouTubeCSS");
+//script.commentCSS = GM_getResourceText("res-commentCSS");
+script.PlayerCSS = GM_getResourceText("res-PlayerCSS");
 
 
 
@@ -317,6 +362,7 @@ isWatch = 1;
 } else {
 return;
 }
+
 
 
 if ($("body").hasClass("watch6")) { // already has class, do nothing
@@ -333,6 +379,17 @@ if ($("#page").hasClass("watch6")) { // already has class, do nothing
 } else { // does not have class, add class
 	$("#page").addClass("watch6");
 }
+
+if (cssEllipsis === true) {
+$("body").addClass("watch6-channel-button-ellipsis");
+}
+
+if (fullSugThumbs === true) {
+$("body").addClass("watch6-full-related-thumb");
+}
+
+
+
 
 var plNum = 0;
 var hasPl = 0;
@@ -540,6 +597,12 @@ $("body").addClass("watch6-playerFill");
 $("#page").addClass("watch6-playerFill");
 }
 
+if (useRemoteCss === true) {
+	debug("Inserting YouTube CSS");
+	insertCSS(script.YouTubeCSS);
+	debug("YouTube CSS is now active");
+}
+
 
 	
 // Insert Main CSS
@@ -647,6 +710,7 @@ if (hasPl == 1) {
 			.attr("class", "yt-uix-button-icon-watch-next")
 			.appendTo("#watch-next");
 	}
+	
 }
 
 
@@ -656,103 +720,62 @@ debug("Check for HTML5 video");
 var html5 = false;
 if ($("#player").hasClass("html5-player")) {
 	debug("Page has HTML5 video");
+	//alert("html5");
 	html5 = true;
-} else if ($("movie_player").hasClass("html5-video-player")) {
+} else if ($("#movie_player").hasClass("html5-video-player")) {
 	debug("Page has HTML5 player");
+	//alert("html5");
 	html5 = true;
-} else if (noChngPlr) {
-        debug("don't change player is true");
-        html5 = true;
+} else if (forceHtml5) {
+	debug("HTML5 force enabled");
+	html5 = true;
 } else {
 	debug("No HTML5 video");
+	//alert("is flash");
 }
 
-if (cosmicvids == 1) {
-    //var relatedthumbs = $("#watch-related .yt-thumb-120");
-    //var relatedcontainer = $("#watch-related");
-    
-    
-    
-    var related = $("#watch-related .video-list-item");
-    /*related.addClass("watch6-video-list-item");
-    var relatedimg = $("#watch-related .yt-thumb-120 img");
-    var relatedimg = $("#watch-related .thumb-link img");
-    var relatedimgsrc = relatedimg.attr("src");
-    relatedimgsrc = relatedimgsrc.replace("/default.jpg", "/mqdefault.jpg");
-    relatedimg.attr("src", relatedimgsrc);*/
-    alert("1");
-    /*relatedimg.each(function(index, img) {*/
-    related.each(function(index, li) {
-      alert("2");
-      var relateditm = this;
-      var theimg = $(+ relateditm + ".thumb-link img");
-      var imgsrc = "";
-      alert("3");
-      //if ($(theimg).attr("src").indexOf("pixel") > -1) {
-      if ($(theimg).is("img[src*='pixel']")) {
-      //if ($(theimg).attr("src") ~= "pixel") {
-        alert("4 1");
-        imgsrc = $(theimg).attr("data-thumb");
-        alert("5 1");
-        newimgsrc = $(imgsrc).replace("default.jpg", "mqdefault.jpg");
-        alert("6 1");
-        $(theimg).attr("data-thumb", newimgsrc);
-        alert("7 1");
-      } else {
-        alert("4 2");
-        imgsrc = $(theimg).attr("src");
-        alert("5 2");
-        newimgsrc = imgsrc.replace("default.jpg", "mqdefault.jpg");
-        alert("6 2");
-        $(theimg).attr("src", newimgsrc);
-        alert("7 2");
-      }
-      relateditm.addClass("watch6-related-img");
-
-
-
-
-    /*related.each(function(index, li) {
-    alert("3");
-            var relateditem = this;
-            //var relatedlnk = $(+ relateditem + " .related-video");
-            var relatedlnk = $(+ relateditem + " .content-link");
-            var relatedhref = "/watch?v=null";
-            relatedhref = relatedlnk.attr("href");
-            alert("3.1");
-            //relatedhref = $(+ relateditem + " .related-video").attr("href");
-            //relatedhref = $(relateditem + " .content-lnk").attr("href");
-            //relatedid = relatedhref.replace("/watch?v=", "");
-            alert("3.2");
-            //relatedsplit = relatedhref.split("=", 2);
-            relatedsrc = "";
-            alert("3.3");
-            //relatedid = relatedsplit[1];
-            alert("3.4");
-            //relatedimg7 = $(+ this + " .yt-thumb-120 img");
-            relatedimg7 = $(+ this + " .thumb-link img");
-            alert("3.5");
-            relatedsrc7 = relatedimg7.attr("src");
-            relatedsrc7 = relatedimg7.attr("data-thumb");
-            alert("3.6");
-            newsrc7 = relatedimg7.replace("default.jpg", "mqdefault.jpg");
-            alert("4");
-            $(document.createElement("img"))
-	           .attr("class", "watch6-related-img")
-	           //.attr("src", "//i2.ytimg.com/vi/" + relatedid + "/mqdefault.jpg")
-	           //.attr("data-thumb", "//i2.ytimg.com/vi/" + relatedid + "/mqdefault.jpg")
-	           .attr("src", newsrc7)
-	           .attr("data-thumb", newsrc7)
-	           .insertAfter(relatedimg7);
-            alert("5")
+if (cosmicvids === true) {
+	var related = $("#watch-related .video-list-item");
+	related.each(function(index, li) {
+		var relateditem = $(this),
+		    relatedlnk,
+		    relatedhref,
+		    relatedsplit,
+		    relatedid,
+		    relatedencode;
+		relatedlnk = $(".thumb-link", this);
+		relatedhref = "/watch?v=null";
+		relatedhref = relatedlnk.attr("href");
+		relatedencode = encodeURIComponent(relatedhref);
+		relatedsplit = relatedencode.split("%3D", 2);
+		relatedid = relatedsplit[1];
+		$("span", relatedlnk).remove();
+		$(document.createElement("span"))
+			.attr("class", "ux-thumb-260 video-thumb")
+			.attr("id", "thumb-" + relatedid)
+			.html("<span class='clip'></span>")
+			.appendTo(relatedlnk);
+		$(document.createElement("img"))
+			.attr("class", "watch6-related-img")
+			.attr("src", "//i.ytimg.com/vi/" + relatedid + "/mqdefault.jpg")
+			.attr("data-thumb", "//i.ytimg.com/vi/" + relatedid + "/mqdefault.jpg")
+			.attr("aria-hidden", "true")
+			.attr("alt", "Thumbnail")
+			.appendTo("#thumb-" + relatedid + " .clip");
+		relateditem.addClass("watch6-video-list-item");
+		$(".thumb-wrapper", this).insertBefore(".content-wraper", this);
 	           
 	          
-            /*img.src = img.src.replace("/default.jpg", "/mqdefault.jpg"); 
-            imgsrc = img.src;
-            imgsrc = imgsrc.replace("/default.jpg", "/mqdefault.jpg");
-            img.src = imgsrc;
-            img.removeAttribute("data-thumb");*/
-            alert("6");
+
+
+
+
+		//alert("img changed");
+
+		/*$('#watch-more-related').bind('DOMNodeInserted', function() {
+			alert('more videos loaded');
+			$(this).unbind(DOMNodeInserted);
+		});*/
             
             /*var MutationObserver = window.MutationObserver || window.WebKitMutationObserver || window.MozMutationObserver;
             var imgObserver = new MutationObserver(function(mutations) {
@@ -775,7 +798,7 @@ if (cosmicvids == 1) {
     });
 }
 
-if (!html5) {
+if (!html5 && !noChngPlr) {
 	debug("Change video player");
 	
 	var playerContainer = $("#player #player-api");
@@ -997,7 +1020,7 @@ if (!html5) {
 		flvars = flvars.replace("&afv_invideo_ad_tag=", "&ad_tag");
 		flvars = flvars.replace("&sourceid=ys", "&sourceid=y");
 		flvars += "&ad_module=https%3A%2F%2Fs.ytimg.com%2Fyts%2Fswfbin%2Fplayer-" + plid + "%2Fad.swf";
-		flvars += "&iv_storage_server=http://www.google.com/reviews/y/"
+		flvars += "&iv_storage_server=http://www.google.com/reviews/y/";
 		$("body").addClass("player3");
 	} else { //player type not recognized, so do nothing
 		
@@ -1030,6 +1053,68 @@ if (!html5) {
 		debug("creating observer");
 		vidObserver.observe(playerContainer[0], {attributes:true,childList:true});
 		debug("observing done");
+	
+} else if (noChngPlr) {
+ytStage = 0; //force disable of ytstage since it requires player changing.
+
+} else if (html5) {
+	//alert("html5 is on");
+	var playerContainer = $("#player #player-api");
+	var playerContainer2 = $("#watch-video #watch-player");
+	var playerElement = $("#movie_player");
+	var plsrc = "hello_world";
+
+	if (HTML5Style == 1) { // add cosmic panda-style player
+	debug("Inserting Player CSS");
+	insertCSS(script.PlayerCSS);
+	debug("Player CSS is now active");
+	} else {
+	
+	}
+
+	if (ytStage == 1) {
+	playerContainer = playerContainer2;
+	$("#page").addClass("watch6Stage");
+	$("body").addClass("watch6Stage");
+	}
+	debug("Applying player settings");
+	playerElement.attr("wmode", "transparent");
+		debug("Refresh the player");
+		//playerElement.attr("flashvars", flvars);
+		playerElement.attr("src", plsrc);
+		playerElement.appendTo(playerContainer);
+		debug("changing player done");
+		
+		var MutationObserver1 = window.MutationObserver || window.WebKitMutationObserver || window.MozMutationObserver;
+		var vidObserver = new MutationObserver1(function(mutations) {
+			// Re-apply the chosen player if something changes it
+			if ($("#movie_player").attr("src") != plsrc) {
+				debug("Player has been reverted by YT. Now setting back to chosen player");
+				//$("#movie_player").attr("flashvars", flvars);
+				$("#movie_player").attr("src", plsrc);
+				$("#movie_player").appendTo(playerContainer);
+				debug("Player now back to chosen player");
+			}
+		});
+		debug("creating observer");
+		vidObserver.observe(playerContainer[0], {attributes:true,childList:true});
+		debug("observing done");
+
+		$(document.createElement("div"))
+			.attr("class", "yt-uix-button-icon")
+			.attr("src", "http://s.ytimg.com/yt/img/pixel-vfl3z5WfW.gif")
+			.appendTo("#movie_player .html5-player-chrome .ytp-button[tabindex='6000']");
+		$(document.createElement("div"))
+			.attr("class", "yt-uix-button-icon")
+			.attr("src", "http://s.ytimg.com/yt/img/pixel-vfl3z5WfW.gif")
+			.appendTo("#movie_player .html5-player-chrome .ytp-button[tabindex='6100']");
+		$(document.createElement("div"))
+			.attr("class", "yt-uix-button-icon")
+			.attr("src", "http://s.ytimg.com/yt/img/pixel-vfl3z5WfW.gif")
+			.appendTo("#movie_player .html5-player-chrome .ytp-button[tabindex='6900']");
+		$("#movie_player .html5-player-chrome .ytp-button[tabindex='6800']")
+			.attr("aria-hidden", "true")
+			.attr("style", "display: none;");
 	
 }
 
@@ -1090,6 +1175,118 @@ if (hasPl == 1 && enablePlTitle == 1) {
 		.attr("class", "yt-uix-button-icon-watch-next")
 		.insertAfter("#playlist-title");
 }
+if (hasPl == 1 && fixPlaylists === true) {
+	//watch6-playlist class or id
+	$(document.createElement("div"))
+		.attr("id", "watch-tray-playlist")
+		.appendTo("#watch-tray");
+	$(document.createElement("div"))
+		.attr("class", "yt-uix-slider")
+		.appendTo("#watch-tray-playlist");
+	$(document.createElement("div"))
+		.attr("class", "yt-uix-slider-body")
+		.appendTo("#watch-tray-playlist .yt-uix-slider");
+	$(document.createElement("div"))
+		.attr("id", "watch-tray-playlist-content")
+		.attr("class", "yt-uix-slider-slide")
+		.attr("style", "")
+		.appendTo("#watch-tray-playlist .yt-uix-slider-body");
+	$(document.createElement("ol"))
+		.attr("class", "video-list")
+		.appendTo("#watch-tray-playlist-content");
+	
+	
+	var PlItems = $("#playlist-autoscroll-list .yt-uix-scroller-scroll-unit");
+	var ListId = getQueryVariable("list");
+	var PlayingIndex = 0;
+	
+	PlItems.each(function(index, li) {
+		var PlVid = $(this),
+		    PlVidId,
+		    PlVidTitle,
+		    PlVidIndex,
+		    PlVidUser,
+		    PlVidPlaying,
+		    PlVidNumInit,
+		    PlVidNumInt,
+		    PlVidNum,
+		    PlVidNew;
+		PlVidId = PlVid.attr("data-video-id");
+		PlVidPlaying = PlVid.hasClass("currently-playing");
+		PlVidTitle = PlVid.attr("data-video-title");
+		//alert(PlVidTitle);
+		PlVidIndex = PlVid.attr("data-index");
+		PlVidUser = PlVid.attr("data-video-username");
+		PlVidNumInit = parseInt(PlVidIndex);
+		PlVidNumInt = PlVidNumInit + 1;
+		PlVidNum = "" + PlVidNumInt;
+		PlVidNew = $(document.createElement("li"))
+			.attr("id", "playlist-item-" + PlVidId)
+			.attr("class", "watch-tray-playlist-item yt-uix-slider-slide-unit")
+			.attr("data-video-id", PlVidId)
+			.appendTo("#watch-tray-playlist-content .video-list");
+		$(document.createElement("a"))
+			.attr("title", "")
+			.attr("href", "/watch?v=" + PlVidId + "&feature=BFa&list=" + ListId + "&index=" + PlVidIndex)
+			.appendTo(PlVidNew);
+		$(document.createElement("span"))
+			.attr("class", "video-thumb ux-thumb-")
+			.appendTo("#playlist-item-" + PlVidId + " a");
+		$(document.createElement("span"))
+			.attr("class", "clip")
+			.appendTo("#playlist-item-" + PlVidId + " .video-thumb");
+		$(document.createElement("img"))
+			.attr("data-thumb", "//i.ytimg.com/vi/" + PlVidId + "/mqdefault.jpg")
+			.attr("data-thumb-manual", "true")
+			.attr("alt", "")
+			.attr("src", "//i.ytimg.com/vi/" + PlVidId + "/mqdefault.jpg")
+			.appendTo("#playlist-item-" + PlVidId + " .clip");
+		$(document.createElement("span"))
+			.attr("class", "meta")
+			.appendTo("#playlist-item-" + PlVidId + " a");
+		if (PlVidPlaying === true) {
+			PlVidNew.addClass("playlist-bar-item-playing");
+			$(document.createElement("span"))
+				.attr("class", "meta-playing playing")
+				.html("Now Playing")
+				.appendTo("#playlist-item-" + PlVidId + " .meta");
+		}
+		$(document.createElement("span"))
+			.attr("class", "meta-title")
+			.attr("title", PlVidTitle)
+			.html("<strong>" + PlVidTitle + "</strong>")
+			.appendTo("#playlist-item-" + PlVidId + " .meta");
+		$(document.createElement("span"))
+			.attr("class", "meta-uploader")
+			.html("by " + PlVidUser)
+			.appendTo("#playlist-item-" + PlVidId + " .meta");
+		$(document.createElement("span"))
+			.attr("class", "count-number count")
+			.html("<strong>" + PlVidNum + "</strong>")
+			.appendTo("#playlist-item-" + PlVidId + " .meta");
+
+		
+		
+		if (PlVidPlaying === true) {
+			PlVidNew.addClass("playlist-bar-item-playing");
+			PlayingIndex = PlVidNumInit;
+		}
+		
+		
+	});
+
+	
+	$("body").addClass("watch6-playlist-bar");
+	var PlItemSize = 452;
+	var PlScroll = 152 * PlayingIndex;
+	$("#watch-tray-playlist .yt-uix-slider-body").scrollLeft(PlScroll);
+	
+	
+	
+	
+	
+}
+
 
 if (ytStage == 1) {
 debug("Making the .yt-bar in stage");
@@ -1125,7 +1322,7 @@ debug("#watch-bar done");
 // make the channel button
 // get the info
 var userName = "<i>User Unknown</i>";
-var userUrl = ""
+var userUrl = "";
 //userName = $("#watch7-user-header .yt-user-name").text();
 userName = $("#watch7-user-header .yt-user-info a").text();
 userUrl = $("#watch7-user-header a.yt-user-photo").attr("href");
@@ -1571,24 +1768,24 @@ $(document.createElement("span"))
 
 
 if (saveSize === true) {
+	//alert("size set initiated");
 	newSize = GM_getValue("lastSize", "Small");
-	newSizeLower = newSize.toLowerCase()
+	newSizeBtn = GM_getValue("lastSizeBtn", "small");
 	//newSize = "Small";
 
 
 	setPlayer6(newSize, "wide");
-	$("#watch-button-size-" + newSizeLower).addClass("yt-uix-button-toggled");
+	$("#watch-button-size-" + newSizeBtn).addClass("yt-uix-button-toggled");
 
 
 
 }
 
 
+
 // Remove Crash notice
 debug("Removing crash notice");
 insertCSS("#bwpCrash {display:none !important;} ");
-
-
 
 
 
@@ -1624,6 +1821,16 @@ function www_watch6_onPlayerSizeClicked(playsize) {
 }*/
 
 
+
+
+function doAlert(text) {
+	if (alertsEnabled === true) {
+		alert(text);
+	}
+	else {
+		//do nothing, alerts aren't enabled.
+	}
+}
 
 
 
@@ -1668,6 +1875,7 @@ function setPlayer6(size, type) {
 		$("#page")
 			.addClass("watch6-small");
 		GM_setValue("lastSize", "Small");
+		GM_setValue("lastSizeBtn", "small");
 		debug("End function: setPlayer6small");
 	} else if (size == "Medium") {
 		debug("Function: setPlayerSize");
@@ -1676,6 +1884,7 @@ function setPlayer6(size, type) {
 		$("#page")
 			.addClass("watch6-medium");
 		GM_setValue("lastSize", "Medium");
+		GM_setValue("lastSizeBtn", "medium");
 		debug("End function: setPlayer6medium");
 	} else if (size == "Large") {
 		debug("Function: setPlayerSize");
@@ -1684,6 +1893,7 @@ function setPlayer6(size, type) {
 		$("#page")
 			.addClass("watch6-large");
 		GM_setValue("lastSize", "Large");
+		GM_setValue("lastSizeBtn", "large");
 		debug("End function: setPlayer6large");
 	} else if (size == "Full") {
 		debug("Function: setPlayerSize");
@@ -1700,6 +1910,7 @@ function setPlayer6(size, type) {
 		$("body")
 			.addClass("watch6-full");
 		GM_setValue("lastSize", "Full");
+		GM_setValue("lastSizeBtn", "full");
 		debug("End function: setPlayer6full");
 	} else { //invalid size was set, so return an error and set to small...
 	debug("Error! Invalid size! Setting player to small.");
@@ -1819,7 +2030,21 @@ function insertCSS(cssToInsert) {
 }
 
 
+function getQueryVariable(variable)
+{
+       var query = window.location.search.substring(1);
+       var vars = query.split("&");
+       for (var i=0;i<vars.length;i++) {
+               var pair = vars[i].split("=");
+               if(pair[0] == variable){return pair[1];}
+       }
+       return(false);
+}
 
+
+
+
+/*
 function insertAfter(new_node, existing_node) {
 	// if the existing node has a following sibling, insert the current
 	// node before it. otherwise appending it to the parent node
@@ -1835,7 +2060,79 @@ function insertAfter(new_node, existing_node) {
 		existing_node.parentNode.appendChild(new_node);
 	}
 
-} // insertAfter()
+} // insertAfter()*/
+
+
+
+
+
+
+// Wrapper for GM_xmlhttpRequest
+/*function GM_XHR() {
+    this.type = null;
+    this.url = null;
+    this.async = null;
+    this.username = null;
+    this.password = null;
+    this.status = null;
+    this.headers = {};
+    this.readyState = null;
+
+    this.open = function(type, url, async, username, password) {
+        this.type = type ? type : null;
+        this.url = url ? url : null;
+        this.async = async ? async : null;
+        this.username = username ? username : null;
+        this.password = password ? password : null;
+        this.readyState = 1;
+    };
+
+    this.setRequestHeader = function(name, value) {
+        this.headers[name] = value;
+    };
+
+    this.abort = function() {
+        this.readyState = 0;
+    };
+
+    this.getResponseHeader = function(name) {
+        return this.headers[name];
+    };
+
+    this.send = function(data) {
+        this.data = data;
+        var that = this;
+        GM_xmlhttpRequest({
+            method: this.type,
+            url: this.url,
+            headers: this.headers,
+            data: this.data,
+            onload: function(rsp) {
+                // Populate wrapper object with returned data
+                for (k in rsp) {
+                    that[k] = rsp[k];
+                }
+            },
+            onerror: function(rsp) {
+                for (k in rsp) {
+                    that[k] = rsp[k];
+                }
+            },
+            onreadystatechange: function(rsp) {
+                for (k in rsp) {
+                    that[k] = rsp[k];
+                }
+            }
+        });
+    };
+};
+
+$.ajaxSetup({
+    xhr: function(){return new GM_XHR;}
+});*/
+
+
+
 
 
 
