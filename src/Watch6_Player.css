@@ -326,7 +326,8 @@ background-image: none !important;
 
 }
 
-.dark-theme:not(.ytp-block-autohide) .ytp-progress-list {
+#movie_player.dark-theme:not(.ytp-block-autohide) .ytp-progress-list,
+.dark-theme #movie_player:not(.ytp-block-autohide) .ytp-progress-list {
 height: 3px;
 }
 
@@ -357,6 +358,7 @@ height: 3px;
 
 .dark-theme .hide-controls .html5-scrubber-button,.dark-theme .disabled-control-seek .html5-scrubber-button,
 #movie_player.dark-theme:not(.ytp-block-autohide) .html5-scrubber-button
+.dark-theme #movie_player:not(.ytp-block-autohide) .html5-scrubber-button
 {
   -moz-transform:scale(0);
   -moz-transform-origin:50% 50%;
@@ -1299,6 +1301,9 @@ background-size: 1px 1px;*/
 .light-theme .ytp-progress-tooltip.with-thumbnail .ytp-progress-tooltip-arrow {
 border-top-color: rgba(0, 0, 0, 0.85);
 }
+
+
+
 
 
 
