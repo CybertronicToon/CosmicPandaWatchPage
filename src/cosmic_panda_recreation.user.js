@@ -4,12 +4,12 @@
 // @namespace      http://userscripts.org/users/428476
 // @description    attempts to re-create cosmic panda (2011 watch6 Test) using Javascript. It has all four size buttons fully implemented, has the prev and next buttons next to player, and makes the watch page look and feel like Cosmic Panda.
 // @require        https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js
-// @resource       res-YouTubeCSS https://raw.githubusercontent.com/CybertronicToon/CosmicPandaWatchPage/master/src/watch6.css#2
-// @resource       res-PlayerCSS https://raw.githubusercontent.com/CybertronicToon/CosmicPandaWatchPage/master/src/Watch6_Player.css#0
+// @resource       res-YouTubeCSS https://raw.githubusercontent.com/CybertronicToon/CosmicPandaWatchPage/master/src/watch6.css#3
+// @resource       res-PlayerCSS https://raw.githubusercontent.com/CybertronicToon/CosmicPandaWatchPage/master/src/Watch6_Player.css#1
 // @grant          GM_getValue
 // @grant          GM_setValue
 // @grant          GM_deleteValue
-// @grant          GM_registerMenuCommanwd
+// @grant          GM_registerMenuCommand
 // @grant          GM_listValues
 // @grant          GM_addStyle
 // @grant          GM_getResourceText
@@ -19,7 +19,7 @@
 // @include        *apis.google.com*
 // @include        *plus.googleapis.com*
 // @exclude        http://web.archive.org/*
-// @version        1.3
+// @version        1.4
 // ==/UserScript==
 
 var standardsizes = 0; //enable standard size options?
@@ -34,7 +34,7 @@ var threeDsizes = 0; //not really that useful (enables player sizes for use with
 
 var pltype = 2013;// 2012 = player from 2012 (doesn't work - was deleted). 2013 = current player (if a video doesn't play, set to 2013) 2 = Player 3 AKA grey player (WAS DELETED!! almost always worked - least buggy player and possibly faster loading) 3 = player 3 V8 version (WAS DELETED! should have always work before - has better fullscreen, and player 3 benefits)
 
-var HTML5Style = 1 //1 = cosmic panda-style player, 0 = normal style player
+var HTML5Style = 1 //0 = normal style HTML5 player, 1 = cosmic panda style, 2 = white/light player style
 
 var cosmicvids = true; // cosmic panda style of related videos
 
@@ -58,6 +58,8 @@ var fullSugThumbs = false; //makes the cosmicvids suggested thumbnails be full s
 
 // 2012 = 2012
 // 2011 = cospan = 2011 dark (not working)
+
+var YTCenterColors = false; //let YouTubeCenter control player's color? (aka light (white player) or dark (cosmic panda-style) player)
 
 // Everything below this line shouldn't be edited unless you are an advanced user and know what you are doing.
 
@@ -532,13 +534,13 @@ if (tweakDesc === true) {
 	$("#watch-action-panels").appendTo("#watch8-action-buttons");
 	$("#watch-description").appendTo("#watch8-action-buttons");
 	$("#watch-header").addClass("watch6-header");
-	$("#watch-like-dislike-buttons").attr("id", "watch-like-unlike");
-	$("#watch-like-unlike #watch-like")
-		.unwrap()
+	/*$("#watch-like-dislike-buttons").attr("id", "watch-like-unlike");*/
+	$("#watch-like-dislike-buttons #watch-like")
+		//.unwrap()
 		.addClass("start")
 		.addClass("yt-uix-tooltip-reverse");
-	$("#watch-like-unlike #watch-dislike")
-		.unwrap()
+	$("#watch-like-dislike-buttons #watch-dislike")
+		//.unwrap()
 		.addClass("end")
 		.addClass("yt-uix-tooltip-reverse");
 	
@@ -1064,19 +1066,34 @@ ytStage = 0; //force disable of ytstage since it requires player changing.
 	var playerElement = $("#movie_player");
 	var plsrc = "hello_world";
 
-	if (HTML5Style == 1) { // add cosmic panda-style player
-	debug("Inserting Player CSS");
-	insertCSS(script.PlayerCSS);
-	debug("Player CSS is now active");
-	} else {
-	
+	if (ytStage == 1) {
+		playerContainer = playerContainer2;
+		$("#page").addClass("watch6Stage");
+		$("body").addClass("watch6Stage");
 	}
 
-	if (ytStage == 1) {
-	playerContainer = playerContainer2;
-	$("#page").addClass("watch6Stage");
-	$("body").addClass("watch6Stage");
+	if (HTML5Style == 1) { // add cosmic panda-style player
+		debug("Inserting Player CSS");
+		insertCSS(script.PlayerCSS);
+		debug("Player CSS is now active");
+		if (YTCenterColors === false) {
+			playerContainer.addClass("dark-theme");
+		}
+		//playerElement.removeClass("dark-theme");
+		//playerElement.addClass("dark-theme");
+	} else if (HTML5Style == 2) { // add white style player overrides dark player
+		debug("Inserting Player CSS");
+		insertCSS(script.PlayerCSS);
+		debug("Player CSS is now active");
+		if (YTCenterColors === false) {
+			playerContainer.addClass("light-theme");
+		}
+		//playerElement.removeClass("light-theme");
+		//playerElement.addClass("light-theme");
+	} else {
+		
 	}
+
 	debug("Applying player settings");
 	playerElement.attr("wmode", "transparent");
 		debug("Refresh the player");
@@ -1100,21 +1117,41 @@ ytStage = 0; //force disable of ytstage since it requires player changing.
 		vidObserver.observe(playerContainer[0], {attributes:true,childList:true});
 		debug("observing done");
 
-		$(document.createElement("div"))
-			.attr("class", "yt-uix-button-icon")
-			.attr("src", "http://s.ytimg.com/yt/img/pixel-vfl3z5WfW.gif")
-			.appendTo("#movie_player .html5-player-chrome .ytp-button[tabindex='6000']");
-		$(document.createElement("div"))
-			.attr("class", "yt-uix-button-icon")
-			.attr("src", "http://s.ytimg.com/yt/img/pixel-vfl3z5WfW.gif")
-			.appendTo("#movie_player .html5-player-chrome .ytp-button[tabindex='6100']");
-		$(document.createElement("div"))
-			.attr("class", "yt-uix-button-icon")
-			.attr("src", "http://s.ytimg.com/yt/img/pixel-vfl3z5WfW.gif")
-			.appendTo("#movie_player .html5-player-chrome .ytp-button[tabindex='6900']");
-		$("#movie_player .html5-player-chrome .ytp-button[tabindex='6800']")
-			.attr("aria-hidden", "true")
-			.attr("style", "display: none;");
+	$(document.createElement("div"))
+		.attr("class", "yt-uix-button-icon")
+		.attr("src", "http://s.ytimg.com/yt/img/pixel-vfl3z5WfW.gif")
+		.appendTo("#movie_player .html5-player-chrome .ytp-button[tabindex='6000']");
+	$(document.createElement("div"))
+		.attr("class", "yt-uix-button-icon")
+		.attr("src", "http://s.ytimg.com/yt/img/pixel-vfl3z5WfW.gif")
+		.appendTo("#movie_player .html5-player-chrome .ytp-button[tabindex='6100']");
+	$(document.createElement("div"))
+		.attr("class", "yt-uix-button-icon")
+		.attr("src", "http://s.ytimg.com/yt/img/pixel-vfl3z5WfW.gif")
+		.appendTo("#movie_player .html5-player-chrome .ytp-button[tabindex='6900']");
+	$(document.createElement("div"))
+		.attr("class", "yt-uix-button-icon")
+		.attr("src", "http://s.ytimg.com/yt/img/pixel-vfl3z5WfW.gif")
+		.appendTo("#movie_player .html5-player-chrome .ytp-button[tabindex='6800']");
+	$(document.createElement("div"))
+		.attr("class", "yt-uix-button-icon")
+		.attr("src", "http://s.ytimg.com/yt/img/pixel-vfl3z5WfW.gif")
+		.appendTo("#movie_player .html5-player-chrome .ytp-button[tabindex='6300']");
+	$(document.createElement("div"))
+		.attr("class", "yt-uix-button-icon")
+		.attr("src", "http://s.ytimg.com/yt/img/pixel-vfl3z5WfW.gif")
+		.appendTo("#movie_player .html5-player-chrome .ytp-button[tabindex='6600']");
+	$(document.createElement("div"))
+		.attr("class", "yt-uix-button-icon")
+		.attr("src", "http://s.ytimg.com/yt/img/pixel-vfl3z5WfW.gif")
+		.appendTo("#movie_player .html5-player-chrome .ytp-button[tabindex='6400']");
+	$(document.createElement("div"))
+		.attr("class", "yt-uix-button-icon")
+		.attr("src", "http://s.ytimg.com/yt/img/pixel-vfl3z5WfW.gif")
+		.appendTo("#movie_player .html5-player-chrome .ytp-button[tabindex='6500']");
+	$("#movie_player .html5-player-chrome .ytp-button[tabindex='6800']")
+		.attr("aria-hidden", "true")
+		.attr("style", "display: none;");
 	
 }
 
