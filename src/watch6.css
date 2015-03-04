@@ -1,5 +1,4 @@
 
-
 #watch7-headline {
 display:none !important;
 }
@@ -1211,7 +1210,28 @@ body.watch6.watch6-rearrange #watch-header .yt-uix-button {
 }
 body.watch6.watch6-rearrange #watch7-user-header {
   display: none !important;
+
+
+  display: block !important;
+  padding-bottom: 0px !important;
 }
+
+
+body.watch6.watch6-rearrange #watch7-user-header #watch7-subscription-container {
+display: block !important;
+min-height: 0px !important;
+margin-left: 0px !important;
+}
+body.watch6.watch6-rearrange #watch7-user-header #savefrom__yt_btn {
+margin-left: 0px !important;
+}
+body.watch6.watch6-rearrange #watch7-user-header .yt-user-photo,
+body.watch6.watch6-rearrange #watch7-user-header .yt-user-info,
+body.watch6.watch6-rearrange #watch7-user-header .yt-uix-button-subscription-container {
+display: none;
+}
+
+
 body.watch6.watch6-rearrange #watch-header {
   padding-top: 0px !important;
   padding-left: 10px !important;
@@ -2018,6 +2038,8 @@ width: 144px;
 .watch6.watch6-playlist-bar #watch-appbar-playlist .playlist-videos-container {
 display: none !important;
 }
+
+
 
 
 
